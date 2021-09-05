@@ -1,50 +1,71 @@
+import { configure } from "queryparams";
+import { cons, remap, toNode } from "./util";
+
 const root = document.querySelector("#root") as HTMLDivElement;
 
-type MinMax = { min: number; max: number };
-
-const remapValue = (n: number, from: MinMax, to: MinMax) => {
-  return ((n - from.min) * (to.max - to.min)) / (from.max - from.min) + to.min;
-};
+const { params: CONFIG } = configure<{
+  interval: number;
+  amount: number;
+  fadeDuration: number;
+  padding: number;
+  fontSize: number;
+  backgroundColor: string;
+  color: string;
+  mode: "count" | "text";
+  text: string;
+}>({
+  interval: 50,
+  amount: 20,
+  fadeDuration: 1000,
+  padding: 15,
+  fontSize: 5,
+  backgroundColor: "black",
+  color: "yellow",
+  mode: "count",
+  text: "now",
+});
 
 const STATE = {
   count: 0,
   radius: 0,
   offset: 0,
-  amount: 0,
   interval: 0,
 };
 
-const size = () => {
+document.body.style.color = CONFIG.color;
+document.body.style.backgroundColor = CONFIG.backgroundColor;
+document.body.style.fontSize = `min(${CONFIG.fontSize}vw, ${CONFIG.fontSize}vh)`;
+
+const resize = () => {
   const longestDimension = Math.min(window.innerWidth, window.innerHeight);
-  const padding = remapValue(
-    15,
+  const padding = remap(
+    CONFIG.padding,
     { min: 0, max: 100 },
     { min: 0, max: longestDimension }
   );
 
   STATE.radius = longestDimension / 2 - padding;
   STATE.offset = STATE.radius;
-  STATE.amount = 20;
-  STATE.interval = (10 / STATE.amount) * 100;
 
   root.style.width = `${STATE.radius * 2}px`;
   root.style.height = `${STATE.radius * 2}px`;
 };
 
-size();
-window.addEventListener("resize", size);
+resize();
+window.addEventListener("resize", resize);
 
-const calculate = (degrees: number) => {
-  const n = remapValue(degrees, { min: 0, max: 360 }, { min: 0, max: 1 });
+const position = (degrees: number) => {
+  const n = remap(degrees, { min: 0, max: 360 }, { min: 0, max: 1 });
   const angle = n * Math.PI * 2;
+
   const x = Math.cos(angle) * STATE.radius + STATE.offset;
   const y = Math.sin(angle) * STATE.radius + STATE.offset;
+
   return { x, y };
 };
 
-const toNode = (html: string) =>
-  new DOMParser().parseFromString(html, "text/html").body
-    .firstChild as HTMLElement;
+const string = CONFIG.text.split("");
+const text = cons(string, Math.min(string.length, 12));
 
 const append = (degrees: number) => {
   if (STATE.count === Number.MAX_SAFE_INTEGER) {
@@ -55,8 +76,8 @@ const append = (degrees: number) => {
 
   return new Promise((resolve) => {
     setTimeout(() => {
-      const deg = degrees * (360 / STATE.amount);
-      const { x, y } = calculate(deg);
+      const deg = degrees * (360 / CONFIG.amount);
+      const { x, y } = position(deg);
 
       const html = `
         <div style="
@@ -64,8 +85,13 @@ const append = (degrees: number) => {
           top: ${y}px;
           left: ${x}px;
           transform: translate(-50%, -50%) rotate(${deg}deg);
+          white-space: nowrap;
         ">
-          ${STATE.count}
+          ${
+            CONFIG.mode === "count"
+              ? STATE.count
+              : text[STATE.count % text.length].join("")
+          }
         </div>
       `;
 
@@ -74,7 +100,7 @@ const append = (degrees: number) => {
       root.appendChild(node);
 
       const animation = node.animate([{ opacity: 1 }, { opacity: 0 }], {
-        duration: 1000,
+        duration: CONFIG.fadeDuration,
         iterations: 1,
         easing: "linear",
       });
@@ -84,18 +110,19 @@ const append = (degrees: number) => {
       };
 
       resolve(null);
-    }, STATE.interval);
+    }, CONFIG.interval);
   });
 };
 
-const total = [...new Array(STATE.amount)].map((_, i) => i);
+const total = [...new Array(CONFIG.amount)].map((_, i) => i);
 
-const cycle = () =>
-  total
+const cycle = () => {
+  return total
     .reduce(async (previous, degrees) => {
       await previous;
       return append(degrees);
     }, Promise.resolve(null))
     .then(cycle);
+};
 
 cycle();
