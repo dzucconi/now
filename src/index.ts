@@ -13,6 +13,7 @@ const { params: CONFIG } = configure<{
   color: string;
   mode: "count" | "text";
   text: string;
+  window: number;
 }>({
   interval: 50,
   amount: 20,
@@ -23,6 +24,7 @@ const { params: CONFIG } = configure<{
   color: "yellow",
   mode: "count",
   text: "now",
+  window: 15,
 });
 
 const STATE = {
@@ -65,7 +67,7 @@ const position = (degrees: number) => {
 };
 
 const string = CONFIG.text.split("");
-const text = cons(string, Math.min(string.length, 12));
+const text = cons(string, Math.min(string.length, CONFIG.window));
 
 const append = (degrees: number) => {
   if (STATE.count === Number.MAX_SAFE_INTEGER) {
