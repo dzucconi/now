@@ -11,7 +11,7 @@ const { params: CONFIG } = configure<{
   fontSize: number;
   backgroundColor: string;
   color: string;
-  mode: "count" | "text";
+  mode: "count" | "text" | "time";
   text: string;
   window: number;
 }>({
@@ -81,6 +81,12 @@ const append = (degrees: number) => {
       const deg = degrees * (360 / CONFIG.amount);
       const { x, y } = position(deg);
 
+      const output = {
+        count: STATE.count,
+        text: text[STATE.count % text.length].join(""),
+        time: new Date().toLocaleTimeString(),
+      }[CONFIG.mode];
+
       const html = `
         <div style="
           position: absolute;
@@ -89,11 +95,7 @@ const append = (degrees: number) => {
           transform: translate(-50%, -50%) rotate(${deg}deg);
           white-space: nowrap;
         ">
-          ${
-            CONFIG.mode === "count"
-              ? STATE.count
-              : text[STATE.count % text.length].join("")
-          }
+          ${output}
         </div>
       `;
 
